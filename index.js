@@ -1,7 +1,7 @@
 var fetch = require("fetch"),
     urllib = require("url");
 
-module.detectFeedUrl = detectFeedUrl;
+module.exports.detectFeedUrl = detectFeedUrl;
 
 var domainRoute = [
     [/^([^\.]+\.blogspot\.com)$/i, "blogspot"],
