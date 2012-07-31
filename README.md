@@ -21,9 +21,13 @@ Use *detectFeedUrl()* for discovering the RSS/Atom feed for an URL
 Outputs
 
     {
-        blogUrl: 'http://techcrunch.com/',
-        feedUrl: 'http://techcrunch.com/feed/',
-        type: 'wordpress'
+        url: 'http://techcrunch.com/',
+        feed: 'http://techcrunch.com/feed/',
+        type: 'wordpress',
+        icon: {
+            url: "http://techcrunch.com/favicon.ico",
+            contentType: "image/x-icon"
+        }
     }
 
 ## License

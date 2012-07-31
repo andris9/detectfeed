@@ -31,39 +31,44 @@ function detectFeedUrl(blogUrl, callback){
         }
 
         blogUrl = urllib.format(urllib.parse(meta.finalUrl));
-        checkSignatures(blogUrl, meta, body, function(error, data){
-            if(error){
-                return callback(error);
-            }
 
-            if(!data){
-                data = {
-                    blogUrl: blogUrl,
-                    type: "other",
-                    feedUrl: fetchFeedURLFromHTML(blogUrl, body)
+        fetchIconURLFromHTML(blogUrl, body, function(error, iconData){
+            checkSignatures(blogUrl, meta, body, function(error, data){
+                if(error){
+                    return callback(error);
                 }
-            }
 
-            if(!data.feedUrl){
-                return callback(null, data);
-            }
-
-            fetch.fetchUrl(data.feedUrl, {
-                    method:"HEAD",
-                    timeout: 3000
-                }, function(error, meta, body){
-                    if(error){
-                        return callback(error);
+                if(!data){
+                    data = {
+                        url: blogUrl,
+                        type: "other",
+                        feed: fetchFeedURLFromHTML(blogUrl, body)
                     }
+                }
 
-                    if(meta.status != 200){
-                        data.feedUrl = null;
-                    }else{
-                        data.feedUrl = meta.finalUrl;
-                    }
+                data.icon = iconData;
 
+                if(!data.feed){
                     return callback(null, data);
-                });
+                }
+
+                fetch.fetchUrl(data.feed, {
+                        method:"HEAD",
+                        timeout: 3000
+                    }, function(error, meta, body){
+                        if(error){
+                            return callback(error);
+                        }
+
+                        if(meta.status != 200){
+                            data.feed = null;
+                        }else{
+                            data.feed = meta.finalUrl;
+                        }
+
+                        return callback(null, data);
+                    });
+            });
         });
     });
 }
@@ -83,8 +88,8 @@ function checkSignatures(blogUrl, meta, body, callback){
         feedUrl = formatFeedUrl(blogUrl, blogType);
 
         return callback(null, {
-            blogUrl: blogUrl,
-            feedUrl: feedUrl,
+            url: blogUrl,
+            feed: feedUrl,
             type: blogType
         });
 
@@ -101,8 +106,8 @@ function checkSignatures(blogUrl, meta, body, callback){
                 if(blogType){
                     ready = true;
                     return callback(null, {
-                        blogUrl: blogUrl,
-                        feedUrl: feedUrl,
+                        url: blogUrl,
+                        feed: feedUrl,
                         type: blogType
                     });
                 }
@@ -117,6 +122,49 @@ function checkSignatures(blogUrl, meta, body, callback){
 
 }
 
+function fetchIconURLFromHTML(url, body, callback){
+    var links = parseLinkElements(body),
+        iconUrls = [],
+        contentType;
+    
+    for(var i=0, len = links.length; i<len; i++){
+        if((links[i].rel || "").match(/\bicon\b/i)){
+            iconUrls.push(urllib.resolve(url, links[i].href));
+        }
+    }
+    iconUrls.push(urllib.resolve(url, "/favicon.ico"));
+
+    function checkIcon(){
+        if(!iconUrls.length){
+            return callback(null, null);
+        }
+        var iconUrl = iconUrls.shift();
+
+        fetch.fetchUrl(iconUrl, {
+                maxResponseLength: 1024 * 512,
+                method: "HEAD",
+                timeout: 3000
+            }, function(error, meta, body){
+                contentType = meta.responseHeaders['content-type'];
+                if(contentType.match(/\bicon?$/)){
+                    contentType = "image/x-icon";
+                }
+
+                if(error || meta.status != 200 || ["image/png", "image/jpeg", "image/gif", "image/x-icon"].indexOf(contentType)<0){
+                    return process.nextTick(checkIcon);
+                }
+
+                return callback(null, {
+                    url: meta.finalUrl,
+                    contentType: contentType
+                });
+            });
+
+    }
+    checkIcon();
+    
+}
+
 function fetchFeedURLFromHTML(url, body){
     var links = parseLinkElements(body),
         feedUrls = [];
@@ -124,7 +172,7 @@ function fetchFeedURLFromHTML(url, body){
         if(
           (links[i].rel || "").toLowerCase() == "alternate" && 
           ["application/rss+xml", "application/atom+xml"].indexOf((links[i].type || "").toLowerCase()) >= 0){
-            feedUrls.push(links[i].href);
+            feedUrls.push(urllib.resolve(url, links[i].href));
         }
     }
 
