@@ -7,14 +7,16 @@ var domainRoute = [
     [/^([^\.]+\.blogspot\.com)$/i, "blogspot"],
     [/^([^\.]+\.wordpress\.com)$/i, "wordpress"],
     [/^([^\.]+\.livejournal\.com)$/i, "livejournal"],
-    [/^([^\.]+\.tumblr\.com)$/i, "tumblr"]
+    [/^([^\.]+\.tumblr\.com)$/i, "tumblr"],
+    [/^([^\.]+\.typepad\.com)$/i, "movabletype"]
 ]
 
 var autoRoute = {
     blogspot: "feeds/posts/default",
     wordpress: "?feed=rss",
     livejournal: "data/rss",
-    tumblr: "rss"
+    tumblr: "rss",
+    movabletype: "atom.xml"
 };
 
 function detectFeedUrl(blogUrl, callback){
@@ -79,7 +81,8 @@ function checkSignatures(blogUrl, meta, body, callback){
         signatureCheckers = [
             checkTumblrSignature,
             checkBlogspotSignature,
-            checkWordpressSignature
+            checkWordpressSignature,
+            checkMovabletypeSignature
         ],
         ready = false,
         waitingFor = signatureCheckers.length;
@@ -161,8 +164,7 @@ function fetchIconURLFromHTML(url, body, callback){
             });
 
     }
-    checkIcon();
-    
+    checkIcon();   
 }
 
 function fetchFeedURLFromHTML(url, body){
@@ -265,6 +267,32 @@ function checkWordpressSignature(url, meta, body, callback){
             if(meta.status == 200){
                 if((body || "").toString().match(/\bgenerator\s*=\s*"?wordpress\b/i)){
                     return callback(null, blogType, meta.finalUrl);
+                }
+            }
+
+            return callback(null);
+        });
+};
+
+function checkMovabletypeSignature(url, meta, body, callback){
+    var parts = urllib.parse(url),
+        blogType = "movabletype",
+        feedUrl = formatFeedUrl(url, blogType),
+        match;
+
+    fetch.fetchUrl(feedUrl, {
+            maxResponseLength: 1024 * 512,
+            timeout: 3000
+        }, function(error, meta, body){
+            if(error){
+                return callback(null);
+            }
+
+            if(meta.status == 200){
+                if((match = (body || "").toString().match(/<generator[^>]*>([^<]*)<\/generator[^>]*>/i))){
+                    if(match[1].match(/typepad/i) || match[1].match(/movable type/i)){
+                        return callback(null, blogType, meta.finalUrl);
+                    }
                 }
             }
 
