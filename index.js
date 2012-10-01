@@ -235,7 +235,7 @@ function checkTumblrSignature(url, meta, body, callback){
 function checkBlogspotSignature(url, meta, body, callback){
     var blogType, feedUrl;
 
-    if(!!meta.responseHeaders.server.match(/\bGSE\b/)){
+    if(meta.responseHeaders.server && meta.responseHeaders.server.match(/\bGSE\b/)){
         blogType = "blogspot";
         feedUrl = formatFeedUrl(url, blogType);
     }
