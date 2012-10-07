@@ -12,17 +12,28 @@ var domainRoute = [
 ]
 
 var autoRoute = {
-    blogspot: "feeds/posts/default",
-    wordpress: "?feed=rss",
-    livejournal: "data/rss",
-    tumblr: "rss",
-    movabletype: "atom.xml"
-};
+        blogspot: "feeds/posts/default",
+        wordpress: "?feed=rss",
+        livejournal: "data/rss",
+        tumblr: "rss",
+        movabletype: "atom.xml"
+    },
 
-function detectFeedUrl(blogUrl, callback){
+    commentsRoute = {
+        blogspot: function(url){return url.replace(/\/posts\//, "/comments/");},
+        wordpress: function(url){return url.replace(/\=rss\d?\b/, "=comments-rss2");},
+        movabletype: function(url){return "comments.xml";}
+    };
+
+function detectFeedUrl(blogUrl, options, callback){
+    if(!callback && typeof options == "function"){
+        callback = options;
+        options = undefined;
+    }
+    options = options || {};
     fetch.fetchUrl(blogUrl, {
         timeout: 3000,
-        maxResponseLength: 1024 * 512
+        maxResponseLength: 1024 * 1024 * 2
     }, function(error, meta, body){
         if(error){
             return callback(error);
@@ -50,26 +61,29 @@ function detectFeedUrl(blogUrl, callback){
 
                 data.icon = iconData;
 
-                if(!data.feed){
-                    return callback(null, data);
-                }
+                checkCommentsFeed(data, body, options, function(err, data){
 
-                fetch.fetchUrl(data.feed, {
-                        method:"HEAD",
-                        timeout: 3000
-                    }, function(error, meta, body){
-                        if(error){
-                            return callback(error);
-                        }
-
-                        if(meta.status != 200){
-                            data.feed = null;
-                        }else{
-                            data.feed = meta.finalUrl;
-                        }
-
+                    if(!data.feed){
                         return callback(null, data);
-                    });
+                    }
+
+                    fetch.fetchUrl(data.feed, {
+                            method:"HEAD",
+                            timeout: 3000
+                        }, function(error, meta, body){
+                            if(error){
+                                return callback(error);
+                            }
+
+                            if(meta.status != 200){
+                                data.feed = null;
+                            }else{
+                                data.feed = meta.finalUrl;
+                            }
+
+                            return callback(null, data);
+                        });
+                });
             });
         });
     });
@@ -273,6 +287,62 @@ function checkWordpressSignature(url, meta, body, callback){
             return callback(null);
         });
 };
+
+function checkCommentsFeed(data, body, options, callback){
+    data = data || {};
+    
+    var comments, disqus;
+
+    if(typeof commentsRoute[data.type] == "function"){
+        comments = commentsRoute[data.type](data.feed);
+    }
+
+    if(options.disqus_api_key && (disqus = checkDisqusUsername(body))){
+        comments = "https://disqus.com/api/3.0/posts/list.rss?forum="+disqus+"&api_key="+options.disqus_api_key;
+    }
+
+    if(comments){
+        fetch.fetchUrl(comments, {
+            maxResponseLength: 1024,
+            method: "HEAD",
+            timeout: 3000
+        }, function(error, meta, body){
+
+            if(error || meta.status != 200){
+                return callback(null, data);
+            }
+
+            data.comments = meta.finalUrl;
+            if(options.disqus_api_key){
+                data.comments = data.comments.replace(options.disqus_api_key, "DISQUS_API_KEY");
+            }
+            return callback(null, data);
+        });
+    }else{
+        callback(null, data);
+    }
+    
+}
+
+function checkDisqusUsername(html){
+    var match;
+
+    html = (html || "").toString("utf-8");
+
+    if((match = html.match(/\bdisqus_shortname\s*=\s*['"](\w+)['"]/))){
+        return match[1];
+    }
+
+    if((match = html.match(/<meta\s+name\s*=\s*["']text:Disqus Shortname["']\s+content\s*=\s*["'](\w+)["']/))){
+        return match[1];
+    }
+
+    if((match = html.match(/http:\/\/disqus.com\/forums\/(\w+)\/get_num_replies.js/))){
+        return match[1];
+    }
+
+    return false;
+}
 
 function checkMovabletypeSignature(url, meta, body, callback){
     var parts = urllib.parse(url),
