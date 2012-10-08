@@ -2,7 +2,7 @@
   "author": "Andris Reinman <andris@node.ee>",
   "name": "detectfeed",
   "description": "Detect RSS/Atom feed for an URL",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "dependencies": {},
   "devDependencies": {},
   "optionalDependencies": {},

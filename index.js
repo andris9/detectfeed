@@ -312,10 +312,13 @@ function checkCommentsFeed(data, body, options, callback){
                 return callback(null, data);
             }
 
-            data.comments = meta.finalUrl;
-            if(options.disqus_api_key){
-                data.comments = data.comments.replace(options.disqus_api_key, "DISQUS_API_KEY");
+            if(meta.finalUrl != data.feed){
+                data.comments = meta.finalUrl;
+                if(options.disqus_api_key){
+                    data.comments = data.comments.replace(options.disqus_api_key, "DISQUS_API_KEY");
+                }    
             }
+            
             return callback(null, data);
         });
     }else{
