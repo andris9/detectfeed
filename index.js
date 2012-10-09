@@ -145,7 +145,7 @@ function fetchIconURLFromHTML(url, body, callback){
         contentType;
     
     for(var i=0, len = links.length; i<len; i++){
-        if((links[i].rel || "").match(/\bicon\b/i)){
+        if(links[i].href && (links[i].rel || "").match(/\bicon\b/i)){
             iconUrls.push(urllib.resolve(url, links[i].href));
         }
     }
