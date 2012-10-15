@@ -162,9 +162,13 @@ function fetchIconURLFromHTML(url, body, callback){
                 method: "HEAD",
                 timeout: 3000
             }, function(error, meta, body){
-                contentType = meta.responseHeaders['content-type'];
-                if(contentType.match(/\bicon?$/)){
-                    contentType = "image/x-icon";
+                if(!error && meta){
+                    contentType = meta.responseHeaders['content-type'];
+                    if(contentType.match(/\bicon?$/)){
+                        contentType = "image/x-icon";
+                    }
+                }else{
+                    contentType = "";
                 }
 
                 if(error || meta.status != 200 || ["image/png", "image/jpeg", "image/gif", "image/x-icon"].indexOf(contentType)<0){
