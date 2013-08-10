@@ -1,5 +1,6 @@
 var fetch = require("fetch"),
-    urllib = require("url");
+    urllib = require("url"),
+    NodePie = require("nodepie");
 
 module.exports.detectFeedUrl = detectFeedUrl;
 
@@ -23,7 +24,12 @@ var autoRoute = {
         blogspot: function(url){return url.replace(/\/posts\//, "/comments/");},
         wordpress: function(url){return url.replace(/\=rss\d?\b/, "=comments-rss2");},
         movabletype: function(url){return "comments.xml";}
-    };
+    },
+
+    defaultHub = {
+        tumblr: "http://tumblr.superfeedr.com",
+        blogspot: "http://pubsubhubbub.appspot.com/"
+    }
 
 function detectFeedUrl(blogUrl, options, callback){
     if(!callback && typeof options == "function"){
@@ -33,7 +39,8 @@ function detectFeedUrl(blogUrl, options, callback){
     options = options || {};
     fetch.fetchUrl(blogUrl, {
         timeout: 3000,
-        maxResponseLength: 1024 * 1024 * 2
+        maxResponseLength: 1024 * 1024 * 2,
+        agent: false
     }, function(error, meta, body){
         if(error){
             return callback(error);
@@ -45,7 +52,14 @@ function detectFeedUrl(blogUrl, options, callback){
 
         blogUrl = urllib.format(urllib.parse(meta.finalUrl));
 
-        fetchIconURLFromHTML(blogUrl, body, function(error, iconData){
+        var rel = {};
+
+        (meta.headers && meta.headers.link || "").
+          replace(/<([^>]+)>\s*(?:;\s*rel=['"]([^'"]+)['"])?/gi, function(o, url, key){
+            rel[(key || "").toLowerCase()] = url;
+        });
+
+        fetchIconURLFromHTML(blogUrl, rel["icon"], body, function(error, iconData){
             checkSignatures(blogUrl, meta, body, function(error, data){
                 if(error){
                     return callback(error);
@@ -59,6 +73,8 @@ function detectFeedUrl(blogUrl, options, callback){
                     }
                 }
 
+                data.feed = fetchFeedURLFromHTML(blogUrl, body) || data.feed;
+
                 data.icon = iconData;
 
                 checkCommentsFeed(data, body, options, function(err, data){
@@ -68,9 +84,10 @@ function detectFeedUrl(blogUrl, options, callback){
                     }
 
                     fetch.fetchUrl(data.feed, {
-                            method:"HEAD",
                             timeout: 3000
                         }, function(error, meta, body){
+                            var nodepie;
+
                             if(error){
                                 return callback(error);
                             }
@@ -79,6 +96,15 @@ function detectFeedUrl(blogUrl, options, callback){
                                 data.feed = null;
                             }else{
                                 data.feed = meta.finalUrl;
+                                try{
+                                    nodepie = new NodePie(body);
+                                    nodepie.init();
+                                }catch(E){
+                                    data.feed = null;
+                                    return callback(null, data);
+                                }
+                                data.url = nodepie.getPermalink() || data.url;
+                                data.hub = nodepie.getHub() || defaultHub[data.type];
                             }
 
                             return callback(null, data);
@@ -139,11 +165,15 @@ function checkSignatures(blogUrl, meta, body, callback){
 
 }
 
-function fetchIconURLFromHTML(url, body, callback){
+function fetchIconURLFromHTML(url, headerIcon, body, callback){
     var links = parseLinkElements(body),
         iconUrls = [],
         contentType;
     
+    if(headerIcon){
+        iconUrls.push(urllib.resolve(url, headerIcon));
+    }
+
     for(var i=0, len = links.length; i<len; i++){
         if(links[i].href && (links[i].rel || "").match(/\bicon\b/i)){
             iconUrls.push(urllib.resolve(url, links[i].href));
