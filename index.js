@@ -84,7 +84,9 @@ function detectFeedUrl(blogUrl, options, callback){
                     }
 
                     fetch.fetchUrl(data.feed, {
-                            timeout: 3000
+                            timeout: 3000,
+                            disableDecoding: true,
+                            maxResponseLength: 3 * 1024 * 1024,
                         }, function(error, meta, body){
                             var nodepie;
 
