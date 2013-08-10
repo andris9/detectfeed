@@ -31,11 +31,17 @@ var autoRoute = {
         blogspot: "http://pubsubhubbub.appspot.com/"
     }
 
-function detectFeedUrl(blogUrl, options, callback){
+function detectFeedUrl(blogUrl, options, level, callback){
+    if(!callback && typeof level == "function"){
+        callback = level;
+        level = undefined;
+    }
+
     if(!callback && typeof options == "function"){
         callback = options;
         options = undefined;
     }
+    level = level || 0;
     options = options || {};
     fetch.fetchUrl(blogUrl, {
         timeout: 3000,
@@ -48,6 +54,16 @@ function detectFeedUrl(blogUrl, options, callback){
 
         if(meta.status != 200){
             return callback(new Error("Invalid status "+meta.status));
+        }
+
+        if(level < 3){
+            try{
+                nodepie = new NodePie(body);
+                nodepie.init();
+                if(nodepie.getPermalink()){
+                    return detectFeedUrl(nodepie.getPermalink(), options, level+1, callback);
+                }
+            }catch(E){}
         }
 
         blogUrl = urllib.format(urllib.parse(meta.finalUrl));
