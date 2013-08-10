@@ -105,6 +105,8 @@ function detectFeedUrl(blogUrl, options, callback){
                                 }
                                 data.url = nodepie.getPermalink() || data.url;
                                 data.hub = nodepie.getHub() || defaultHub[data.type];
+                                data.title = nodepie.getTitle() || "";
+                                data.description = nodepie.getDescription() || "";
                             }
 
                             return callback(null, data);
@@ -262,8 +264,8 @@ function formatFeedUrl(blogUrl, blogType){
 
 function checkDomains(domain){
     for(var i=0, len = domainRoute.length; i<len; i++){
-        if(domain.match(domainRoute[0])){
-            return domainRoute[1];
+        if(domain.match(domainRoute[i][0])){
+            return domainRoute[i][1];
         }
     }
     return null;
