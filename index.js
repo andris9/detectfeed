@@ -1,6 +1,7 @@
 var fetch = require("fetch"),
     urllib = require("url"),
-    NodePie = require("nodepie");
+    NodePie = require("nodepie"),
+    guessLanguage = require("guesslanguage").guessLanguage;
 
 module.exports.detectFeedUrl = detectFeedUrl;
 
@@ -112,6 +113,7 @@ function detectFeedUrl(blogUrl, options, level, callback){
 
                             if(meta.status != 200){
                                 data.feed = null;
+                                return callback(null, data);
                             }else{
                                 data.feed = meta.finalUrl;
                                 try{
@@ -125,9 +127,20 @@ function detectFeedUrl(blogUrl, options, level, callback){
                                 data.hub = nodepie.getHub() || defaultHub[data.type];
                                 data.title = nodepie.getTitle() || "";
                                 data.description = nodepie.getDescription() || "";
-                            }
 
-                            return callback(null, data);
+
+                                var langStr = "";
+                                nodepie.getItems(0, 3).forEach(function(item){
+                                    langStr += ((item.getTitle() || "") + " " + (item.getContents() || "")).
+                                        replace(/\s+/g, " ").replace(/<[^>]>/g, " ").trim() + " ";
+                                });
+                                guessLanguage.detect(langStr, function(language){
+                                    if(language){
+                                        data.language = language;
+                                    }
+                                    return callback(null, data);
+                                });
+                            }
                         });
                 });
             });
