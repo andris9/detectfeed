@@ -226,7 +226,7 @@ function fetchIconURLFromHTML(url, headerIcon, body, callback){
                 timeout: 3000
             }, function(error, meta, body){
                 if(!error && meta){
-                    contentType = meta.responseHeaders['content-type'];
+                    contentType = meta.responseHeaders['content-type'] || "";
                     if(contentType.match(/\bicon?$/)){
                         contentType = "image/x-icon";
                     }
