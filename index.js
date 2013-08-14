@@ -28,7 +28,6 @@ var autoRoute = {
     },
 
     defaultHub = {
-        tumblr: "http://tumblr.superfeedr.com",
         blogspot: "http://pubsubhubbub.appspot.com/"
     }
 
