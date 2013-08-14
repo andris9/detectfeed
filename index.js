@@ -89,7 +89,9 @@ function detectFeedUrl(blogUrl, options, level, callback){
                     }
                 }
 
-                data.feed = fetchFeedURLFromHTML(blogUrl, body) || data.feed;
+                if(!data.feed){
+                    data.feed = fetchFeedURLFromHTML(blogUrl, body) || data.feed;    
+                }
 
                 data.icon = iconData;
 
@@ -280,13 +282,22 @@ function parseLinkElements(body){
 
 function formatFeedUrl(blogUrl, blogType){
     var parts = urllib.parse(blogUrl),
-        feedUrl;
+        feedUrl,
+        pathParts = autoRoute[blogType].split("?"),
+        pathName = pathParts.shift() || "",
+        pathQuery = pathParts.join("?") || "";
 
     delete parts.search;
     delete parts.query;
     delete parts.href;
-    parts.path += autoRoute[blogType];
-    parts.pathname += autoRoute[blogType];
+    parts.path += pathName;
+    parts.pathname += pathName;
+
+    if(pathQuery){
+        parts.path += "?" + pathQuery;
+        parts.search = "?" + pathQuery;
+        parts.query = pathQuery;
+    }
 
     return urllib.format(parts);
 }
